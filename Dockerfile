@@ -1,31 +1,24 @@
-# Step 1: Build the .NET Core Application
-FROM mcr.microsoft.com/dotnet/aspnet:6.0 AS base
-WORKDIR /app
-EXPOSE 80
-
-FROM mcr.microsoft.com/dotnet/sdk:6.0 AS build
-WORKDIR /src
-COPY ["MyApp/MyApp.csproj", "MyApp/"]
-RUN dotnet restore "MyApp/MyApp.csproj"
-COPY . .
-WORKDIR "/src/MyApp"
-RUN dotnet build "MyApp.csproj" -c Release -o /app/build
-
-FROM build AS publish
-RUN dotnet publish "MyApp.csproj" -c Release -o /app/publish
-
-# Step 2: Install PostgreSQL
-FROM postgres:latest AS postgres
-
-# Step 3: Combine both ASP.NET Core and PostgreSQL in a single container
-FROM base AS final
-
-# Copy the .NET application
-COPY --from=publish /app/publish /app
-
-# Copy PostgreSQL configuration
-COPY --from=postgres /usr/local/bin/docker-entrypoint.sh /usr/local/bin/
-
+# Use the official .NET SDK image to build the application
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /app
 
+# Copy the project file and restore dependencies
+COPY *.csproj ./
+RUN dotnet restore
+
+# Copy the rest of the application source code
+COPY . ./
+RUN dotnet publish -c Release -o /out
+
+# Use a lightweight runtime image
+FROM mcr.microsoft.com/dotnet/aspnet:8.0
+WORKDIR /app
+
+# Copy the build output from the previous stage
+COPY --from=build /out .
+
+# Expose port 5000
+EXPOSE 5000
+
+# Configure the entry point
 ENTRYPOINT ["dotnet", "MyApp.dll"]
