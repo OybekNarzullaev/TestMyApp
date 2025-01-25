@@ -14,11 +14,15 @@ RUN dotnet publish -c Release -o /out
 FROM mcr.microsoft.com/dotnet/aspnet:8.0
 WORKDIR /app
 
+# Install the .NET SDK (needed for running dotnet ef)
+RUN apt-get update && apt-get install -y \
+    dotnet-sdk-8.0
+
 # Copy the build output from the previous stage
 COPY --from=build /out . 
 
 # Expose port 5000
 EXPOSE 5000
 
-# Set the entry point to run migrations and then start the app
+# Run migrations and then start the app
 ENTRYPOINT ["sh", "-c", "dotnet ef database update && dotnet MyApp.dll"]
